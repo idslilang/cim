@@ -1,4 +1,4 @@
-package com.crossoverjie.demo.netty;
+package com.crossoverjie.demo.netty.client;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
