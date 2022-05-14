@@ -12,6 +12,22 @@
     <artifactId>cim-demo</artifactId>
     <version>1.0.1-SNAPSHOT</version>
 
+    <properties>
+        <netty.version>4.1.6.Final</netty.version>
+    </properties>
 
+    <dependencies>
+        <dependency>
+            <groupId>com.crossoverjie.netty</groupId>
+            <artifactId>cim-common</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-all</artifactId>
+            <version>${netty.version}</version>
+        </dependency>
+
+    </dependencies>
 
 </project>
