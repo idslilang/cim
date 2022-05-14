@@ -44,6 +44,7 @@ public class NettyClient {
         Channel channel = (SocketChannel) future.channel();
         while (true) {
             String msg ="hello word netty";
+            //必须转化为ByteBuf ，才可以进行消息发送
             ByteBuf message = Unpooled.buffer(msg.getBytes().length);
             message.writeBytes(msg.getBytes());
             ChannelFuture channelFuture = channel.writeAndFlush(message);
