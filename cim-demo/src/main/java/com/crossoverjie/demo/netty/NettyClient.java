@@ -1,13 +1,16 @@
 package com.crossoverjie.demo.netty;
 
 import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.string.StringDecoder;
-
-import java.util.Date;
 
 /**
  * @description:
@@ -28,11 +31,24 @@ public class NettyClient {
                         channel.pipeline().addLast(new StringDecoder());
                     }
                 });
-        Channel channel = bootstrap.connect("127.0.0.1", 8000).addListener(future -> {
-            System.out.println("connected:"+future.isSuccess());
-        }).channel();
+        ChannelFuture future = null;
+        try {
+            future = bootstrap.connect("127.0.0.1", 8000).sync();
+        } catch (Exception e) {
+
+        }
+        if (future.isSuccess()) {
+
+            System.out.println("启动 client 成功");
+        }
+        Channel channel = (SocketChannel) future.channel();
         while (true) {
-            channel.writeAndFlush((new Date() + ": hello world netty").getBytes());
+            String msg ="hello word netty";
+            ByteBuf message = Unpooled.buffer(msg.getBytes().length);
+            message.writeBytes(msg.getBytes());
+            ChannelFuture channelFuture = channel.writeAndFlush(message);
+            channelFuture.addListener((ChannelFutureListener) channelFuture2 ->
+                    System.out.println("客户端手动发消息成功"));
             Thread.sleep(2000);
         }
     }
