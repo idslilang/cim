@@ -1,16 +1,14 @@
 package com.crossoverjie.demo.netty.client;
 
+import com.crossoverjie.cim.common.constant.Constants;
+import com.crossoverjie.cim.common.protocol.CIMRequestProto;
+import com.crossoverjie.demo.netty.initializer.NettyClientInitializer;
 import io.netty.bootstrap.Bootstrap;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelInitializer;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.codec.string.StringDecoder;
 
 /**
  * @description:
@@ -20,17 +18,52 @@ import io.netty.handler.codec.string.StringDecoder;
  */
 public class NettyClient {
 
+    private static SocketChannel channel;
+
     public static void main(String[] args) throws InterruptedException {
+
+        startClient();
+        registToServer(1, "idslilang");
+        sendMsg();
+
+    }
+
+    /**
+     * 向服务器注册
+     */
+    private static void registToServer(long userId, String userName) {
+        CIMRequestProto.CIMReqProtocol login = CIMRequestProto.CIMReqProtocol.newBuilder()
+                .setRequestId(userId)
+                .setReqMsg(userName)
+                .setType(Constants.CommandType.LOGIN)
+                .build();
+        ChannelFuture future = channel.writeAndFlush(login);
+        future.addListener((ChannelFutureListener) channelFuture ->
+                System.out.println("Registry cim server success!")
+        );
+    }
+
+    private static void sendMsg() throws InterruptedException {
+
+        while (true) {
+            CIMRequestProto.CIMReqProtocol login = CIMRequestProto.CIMReqProtocol.newBuilder()
+                    .setRequestId(12321L)
+                    .setReqMsg("hello world netty !")
+                    .setType(Constants.CommandType.LOGIN)
+                    .build();
+            ChannelFuture channelFuture = channel.writeAndFlush(login);
+            channelFuture.addListener((ChannelFutureListener) channelFuture2 ->
+                    System.out.println("客户端手动发消息成功"));
+            Thread.sleep(2000);
+        }
+    }
+
+    private static void startClient() {
         Bootstrap bootstrap = new Bootstrap();
         NioEventLoopGroup nioEventLoopGroup = new NioEventLoopGroup();
         bootstrap.group(nioEventLoopGroup)
                 .channel(NioSocketChannel.class)
-                .handler(new ChannelInitializer<Channel>() {
-                    @Override
-                    protected void initChannel(Channel channel) throws Exception {
-                        channel.pipeline().addLast(new StringDecoder());
-                    }
-                });
+                .handler(new NettyClientInitializer());
         ChannelFuture future = null;
         try {
             future = bootstrap.connect("127.0.0.1", 8000).sync();
@@ -40,17 +73,8 @@ public class NettyClient {
         if (future.isSuccess()) {
 
             System.out.println("启动 client 成功");
-        }
-        Channel channel = (SocketChannel) future.channel();
-        while (true) {
-            String msg ="hello word netty";
-            //必须转化为ByteBuf ，才可以进行消息发送
-            ByteBuf message = Unpooled.buffer(msg.getBytes().length);
-            message.writeBytes(msg.getBytes());
-            ChannelFuture channelFuture = channel.writeAndFlush(message);
-            channelFuture.addListener((ChannelFutureListener) channelFuture2 ->
-                    System.out.println("客户端手动发消息成功"));
-            Thread.sleep(2000);
+
+            channel = (SocketChannel) future.channel();
         }
     }
 }

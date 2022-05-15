@@ -14,20 +14,23 @@ import io.netty.buffer.ByteBufAllocator;
  */
 public class ByteBufUtils {
 
-    public ByteBuf encode(Packet packet) {
+    public static  ByteBuf encode(Packet packet) {
         ByteBuf byteBuf = ByteBufAllocator.DEFAULT.ioBuffer();
-        byte[] bytes = Serializer.DEFAULT.serialize(packet);
+
         byteBuf.writeByte(NettyConstant.MAGIC_NUMBER);
         byteBuf.writeByte(packet.getVersion());
         byteBuf.writeByte(Serializer.DEFAULT.getSerializerAlgorithm());
         byteBuf.writeByte(packet.getCommand());
+
+        byte[] bytes = Serializer.DEFAULT.serialize(packet);
         byteBuf.writeInt(bytes.length);
         byteBuf.writeBytes(bytes);
+
         return byteBuf;
     }
 
 
-    public Packet decode(ByteBuf byteBuf) {
+    public static  Packet decode(ByteBuf byteBuf) {
         //跳过魔数
         byteBuf.skipBytes(1);
         //跳过版本号
@@ -41,7 +44,7 @@ public class ByteBufUtils {
         //获取数据结果
         byte[] bytes = new byte[length];
         byteBuf.readBytes(bytes);
-        Packet packet = Serializer.DEFAULT.deserialize(Packet.class, bytes);
-        return packet;
+
+        return Serializer.DEFAULT.deserialize(Packet.class, bytes);
     }
 }

@@ -8,22 +8,12 @@ import lombok.Data;
  * @version:
  * @modified By:1170370113@qq.com
  */
-
 @Data
-public class LoginRequestPacket extends Packet {
-
-
-    private String userId;
-
-    private String username;
-
-    private String password;
-
-
+public class LoginResponsePackect extends Packet {
     @Override
     public byte getCommand() {
-        return Command.LOGIN_REQUEST;
+        return Command.RESPONSE_REQUEST;
     }
 
-
+    private boolean success;
 }

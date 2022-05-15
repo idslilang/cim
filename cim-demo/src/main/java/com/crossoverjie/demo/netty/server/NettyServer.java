@@ -1,13 +1,14 @@
 package com.crossoverjie.demo.netty.server;
 
+import com.crossoverjie.demo.netty.initializer.NettyServerInitializer;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.codec.string.StringDecoder;
+
+import java.net.InetSocketAddress;
 
 /**
  * @description:
@@ -17,27 +18,27 @@ import io.netty.handler.codec.string.StringDecoder;
  */
 public class NettyServer {
 
-    public static void main(String[] args) {
+    private static EventLoopGroup boss = new NioEventLoopGroup();
+    private static EventLoopGroup work = new NioEventLoopGroup();
 
-        ServerBootstrap serverBootstrap = new ServerBootstrap();
-        NioEventLoopGroup boss = new NioEventLoopGroup();
-        NioEventLoopGroup worker = new NioEventLoopGroup();
-        serverBootstrap
-                .group(boss, worker)
+
+    public static void main(String[] args) throws InterruptedException {
+
+        startServer(8000);
+    }
+
+    public static void startServer(int nettyPort) throws InterruptedException {
+        ServerBootstrap bootstrap = new ServerBootstrap()
+                .group(boss, work)
                 .channel(NioServerSocketChannel.class)
-                .childHandler(new ChannelInitializer<NioSocketChannel>() {
+                .localAddress(new InetSocketAddress(nettyPort))
+                //保持长连接
+                .childOption(ChannelOption.SO_KEEPALIVE, true)
+                .childHandler(new NettyServerInitializer());
 
-                    @Override
-                    protected void initChannel(NioSocketChannel nioSocketChannel) throws Exception {
-                        nioSocketChannel.pipeline().addLast(new StringDecoder())
-                                .addLast(new SimpleChannelInboundHandler<String>() {
-                                    @Override
-                                    protected void channelRead0(ChannelHandlerContext channelHandlerContext, String msg) throws Exception {
-                                        System.out.println(msg);
-                                    }
-                                });
-                    }
-                }).bind(8000);
-        ;
+        ChannelFuture future = bootstrap.bind().sync();
+        if (future.isSuccess()) {
+            System.out.println("Start  server success!!!");
+        }
     }
 }

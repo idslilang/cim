@@ -8,7 +8,9 @@ package com.crossoverjie.demo.netty.entity;
  */
 public interface Command {
 
-    Byte LOGIN_REQUEST = 1;
+    byte LOGIN_REQUEST = 1;
+
+    byte RESPONSE_REQUEST = 2;
 }
 
 
