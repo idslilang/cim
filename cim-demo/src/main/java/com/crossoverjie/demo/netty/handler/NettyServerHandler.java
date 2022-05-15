@@ -29,7 +29,6 @@ public class NettyServerHandler extends SimpleChannelInboundHandler<CIMRequestPr
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, CIMRequestProto.CIMReqProtocol msg) throws Exception {
         System.out.println("received msg:"+ msg.toString());
-
     }
 
 
