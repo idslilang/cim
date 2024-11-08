@@ -2,12 +2,15 @@ package com.crossoverjie.cim.route.service;
 
 import com.crossoverjie.cim.common.enums.StatusEnum;
 import com.crossoverjie.cim.common.exception.CIMException;
+import com.crossoverjie.cim.common.metastore.MetaStore;
 import com.crossoverjie.cim.common.pojo.RouteInfo;
-import com.crossoverjie.cim.route.cache.ServerCache;
+import com.crossoverjie.cim.common.route.algorithm.RouteHandle;
+import com.crossoverjie.cim.common.util.RouteInfoParseUtil;
 import com.crossoverjie.cim.route.kit.NetAddressIsReachable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.annotation.Resource;
+import java.util.List;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
@@ -18,27 +21,27 @@ import org.springframework.stereotype.Component;
  * @since JDK 1.8
  */
 @Component
+@Slf4j
 public class CommonBizService {
-    private static Logger logger = LoggerFactory.getLogger(CommonBizService.class) ;
 
 
-    @Autowired
-    private ServerCache serverCache ;
+    @Resource
+    private RouteHandle routeHandle;
 
     /**
-     * check ip and port
+     * check ip and port, and return a new server if the current server is not available
      * @param routeInfo
      */
-    public void checkServerAvailable(RouteInfo routeInfo){
+    @SneakyThrows
+    public RouteInfo checkServerAvailable(RouteInfo routeInfo, String userId){
         boolean reachable = NetAddressIsReachable.checkAddressReachable(routeInfo.getIp(), routeInfo.getCimServerPort(), 1000);
         if (!reachable) {
-            logger.error("ip={}, port={} are not available", routeInfo.getIp(), routeInfo.getCimServerPort());
-
-            // rebuild cache
-            serverCache.rebuildCacheList();
-
-            throw new CIMException(StatusEnum.SERVER_NOT_AVAILABLE) ;
+            log.error("ip={}, port={} are not available, remove it.", routeInfo.getIp(), routeInfo.getCimServerPort());
+            List<String> list = routeHandle.removeExpireServer(routeInfo);
+            String routeServer = routeHandle.routeServer(list, userId);
+            log.info("Reselect new server:[{}]", routeServer);
+            return RouteInfoParseUtil.parse(routeServer);
         }
-
+        return routeInfo;
     }
 }

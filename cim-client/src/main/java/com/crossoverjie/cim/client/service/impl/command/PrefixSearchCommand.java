@@ -1,16 +1,15 @@
 package com.crossoverjie.cim.client.service.impl.command;
 
-import com.crossoverjie.cim.client.service.EchoService;
+import com.crossoverjie.cim.client.sdk.Client;
+import com.crossoverjie.cim.client.sdk.Event;
 import com.crossoverjie.cim.client.service.InnerCommand;
-import com.crossoverjie.cim.client.service.RouteRequest;
-import com.crossoverjie.cim.client.vo.res.OnlineUsersResVO;
 import com.crossoverjie.cim.common.data.construct.TrieTree;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
+import com.crossoverjie.cim.common.pojo.CIMUserInfo;
+import jakarta.annotation.Resource;
 import java.util.List;
+import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 /**
  * Function:
@@ -19,22 +18,22 @@ import java.util.List;
  * Date: 2019-01-27 19:37
  * @since JDK 1.8
  */
+@Slf4j
 @Service
 public class PrefixSearchCommand implements InnerCommand {
-    private final static Logger LOGGER = LoggerFactory.getLogger(PrefixSearchCommand.class);
 
 
-    @Autowired
-    private RouteRequest routeRequest ;
-    @Autowired
-    private EchoService echoService ;
+    @Resource
+    private Client client ;
+    @Resource
+    private Event event ;
 
     @Override
     public void process(String msg) {
         try {
-            List<OnlineUsersResVO.DataBodyBean> onlineUsers = routeRequest.onlineUsers();
+            Set<CIMUserInfo> onlineUsers = client.getOnlineUser();
             TrieTree trieTree = new TrieTree();
-            for (OnlineUsersResVO.DataBodyBean onlineUser : onlineUsers) {
+            for (CIMUserInfo onlineUser : onlineUsers) {
                 trieTree.insert(onlineUser.getUserName());
             }
 
@@ -44,11 +43,11 @@ public class PrefixSearchCommand implements InnerCommand {
 
             for (String res : list) {
                 res = res.replace(key, "\033[31;4m" + key + "\033[0m");
-                echoService.echo(res) ;
+                event.info(res) ;
             }
 
         } catch (Exception e) {
-            LOGGER.error("Exception", e);
+            log.error("Exception", e);
         }
     }
 }

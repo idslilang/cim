@@ -62,12 +62,12 @@ public interface AccountService {
      * @param sendUserId 发送者的ID
      * @throws Exception
      */
-    void pushMsg(CIMServerResVO cimServerResVO, long sendUserId , ChatReqVO groupReqVO) throws Exception;
+    void pushMsg(CIMServerResVO cimServerResVO, long sendUserId , ChatReqVO groupReqVO);
 
     /**
      * 用户下线
      * @param userId 下线用户ID
      * @throws Exception
      */
-    void offLine(Long userId) throws Exception;
+    void offLine(Long userId);
 }

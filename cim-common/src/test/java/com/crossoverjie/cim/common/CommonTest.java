@@ -1,5 +1,11 @@
 package com.crossoverjie.cim.common;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.junit.Test;
 
 import java.time.LocalDate;
@@ -39,7 +45,6 @@ public class CommonTest {
 
         System.out.println(cycleNum(256,64)) ;
 
-        cycle();
     }
 
 
@@ -78,5 +83,7 @@ public class CommonTest {
             TimeUnit.MILLISECONDS.sleep(200);
         }
     }
+
+
 
 }

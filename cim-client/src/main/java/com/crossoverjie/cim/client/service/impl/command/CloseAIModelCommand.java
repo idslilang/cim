@@ -1,11 +1,9 @@
 package com.crossoverjie.cim.client.service.impl.command;
 
-import com.crossoverjie.cim.client.service.EchoService;
+import com.crossoverjie.cim.client.sdk.Event;
 import com.crossoverjie.cim.client.service.InnerCommand;
 import com.crossoverjie.cim.client.service.MsgHandle;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 
 /**
@@ -17,19 +15,18 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class CloseAIModelCommand implements InnerCommand {
-    private final static Logger LOGGER = LoggerFactory.getLogger(CloseAIModelCommand.class);
 
 
-    @Autowired
+    @Resource
     private MsgHandle msgHandle ;
 
-    @Autowired
-    private EchoService echoService ;
+    @Resource
+    private Event event ;
 
     @Override
     public void process(String msg) {
         msgHandle.closeAIModel();
 
-        echoService.echo("\033[31;4m" + "｡ﾟ(ﾟ´ω`ﾟ)ﾟ｡  AI 下线了！" + "\033[0m");
+        event.info("\033[31;4m" + "｡ﾟ(ﾟ´ω`ﾟ)ﾟ｡  AI 下线了！" + "\033[0m");
     }
 }

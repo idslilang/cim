@@ -2,6 +2,7 @@ package com.crossoverjie.cim.route.controller;
 
 import com.crossoverjie.cim.common.enums.StatusEnum;
 import com.crossoverjie.cim.common.exception.CIMException;
+import com.crossoverjie.cim.common.metastore.MetaStore;
 import com.crossoverjie.cim.common.pojo.CIMUserInfo;
 import com.crossoverjie.cim.common.pojo.RouteInfo;
 import com.crossoverjie.cim.common.res.BaseResponse;
@@ -15,13 +16,16 @@ import com.crossoverjie.cim.route.api.vo.req.P2PReqVO;
 import com.crossoverjie.cim.route.api.vo.req.RegisterInfoReqVO;
 import com.crossoverjie.cim.route.api.vo.res.CIMServerResVO;
 import com.crossoverjie.cim.route.api.vo.res.RegisterInfoResVO;
-import com.crossoverjie.cim.route.cache.ServerCache;
 import com.crossoverjie.cim.route.service.AccountService;
 import com.crossoverjie.cim.route.service.CommonBizService;
 import com.crossoverjie.cim.route.service.UserInfoCacheService;
-import io.swagger.annotations.ApiOperation;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.swagger.v3.oas.annotations.Operation;
+import jakarta.annotation.Resource;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -29,60 +33,56 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import java.util.Map;
-import java.util.Set;
-
 /**
  * Function:
  *
  * @author crossoverJie
- *         Date: 22/05/2018 14:46
+ * Date: 22/05/2018 14:46
  * @since JDK 1.8
  */
+@Slf4j
 @Controller
 @RequestMapping("/")
 public class RouteController implements RouteApi {
-    private final static Logger LOGGER = LoggerFactory.getLogger(RouteController.class);
 
-    @Autowired
-    private ServerCache serverCache;
+    @Resource
+    private MetaStore metaStore;
 
-    @Autowired
+    @Resource
     private AccountService accountService;
 
-    @Autowired
-    private UserInfoCacheService userInfoCacheService ;
+    @Resource
+    private UserInfoCacheService userInfoCacheService;
 
-    @Autowired
-    private CommonBizService commonBizService ;
+    @Resource
+    private CommonBizService commonBizService;
 
-    @Autowired
-    private RouteHandle routeHandle ;
+    @Resource
+    private RouteHandle routeHandle;
 
-    @ApiOperation("群聊 API")
+    @Operation(summary = "群聊 API")
     @RequestMapping(value = "groupRoute", method = RequestMethod.POST)
     @ResponseBody()
     @Override
-    public BaseResponse<NULLBody> groupRoute(@RequestBody ChatReqVO groupReqVO) throws Exception {
+    public BaseResponse<NULLBody> groupRoute(@RequestBody ChatReqVO groupReqVO) {
         BaseResponse<NULLBody> res = new BaseResponse();
 
-        LOGGER.info("msg=[{}]", groupReqVO.toString());
+        log.info("msg=[{}]", groupReqVO.toString());
 
-        //获取所有的推送列表
-        Map<Long, CIMServerResVO> serverResVOMap = accountService.loadRouteRelated();
-        for (Map.Entry<Long, CIMServerResVO> cimServerResVOEntry : serverResVOMap.entrySet()) {
-            Long userId = cimServerResVOEntry.getKey();
-            CIMServerResVO cimServerResVO = cimServerResVOEntry.getValue();
-            if (userId.equals(groupReqVO.getUserId())){
-                //过滤掉自己
-                CIMUserInfo cimUserInfo = userInfoCacheService.loadUserInfoByUserId(groupReqVO.getUserId());
-                LOGGER.warn("过滤掉了发送者 userId={}",cimUserInfo.toString());
+        Map<Long, CIMServerResVO> serverResVoMap = accountService.loadRouteRelated();
+        for (Map.Entry<Long, CIMServerResVO> cimServerResVoEntry : serverResVoMap.entrySet()) {
+            Long userId = cimServerResVoEntry.getKey();
+            CIMServerResVO cimServerResVO = cimServerResVoEntry.getValue();
+            if (userId.equals(groupReqVO.getUserId())) {
+                // Skip the sender
+                Optional<CIMUserInfo> cimUserInfo = userInfoCacheService.loadUserInfoByUserId(groupReqVO.getUserId());
+                cimUserInfo.ifPresent(userInfo -> log.warn("skip send user userId={}", userInfo));
                 continue;
             }
 
-            //推送消息
-            ChatReqVO chatVO = new ChatReqVO(userId,groupReqVO.getMsg()) ;
-            accountService.pushMsg(cimServerResVO ,groupReqVO.getUserId(),chatVO);
+            // Push message
+            ChatReqVO chatVO = new ChatReqVO(userId, groupReqVO.getMsg());
+            accountService.pushMsg(cimServerResVO, groupReqVO.getUserId(), chatVO);
 
         }
 
@@ -98,11 +98,11 @@ public class RouteController implements RouteApi {
      * @param p2pRequest
      * @return
      */
-    @ApiOperation("私聊 API")
+    @Operation(summary = "私聊 API")
     @RequestMapping(value = "p2pRoute", method = RequestMethod.POST)
     @ResponseBody()
     @Override
-    public BaseResponse<NULLBody> p2pRoute(@RequestBody P2PReqVO p2pRequest) throws Exception {
+    public BaseResponse<NULLBody> p2pRoute(@RequestBody P2PReqVO p2pRequest) {
         BaseResponse<NULLBody> res = new BaseResponse();
 
         try {
@@ -110,13 +110,13 @@ public class RouteController implements RouteApi {
             CIMServerResVO cimServerResVO = accountService.loadRouteRelatedByUserId(p2pRequest.getReceiveUserId());
 
             //p2pRequest.getReceiveUserId()==>消息接收者的 userID
-            ChatReqVO chatVO = new ChatReqVO(p2pRequest.getReceiveUserId(),p2pRequest.getMsg()) ;
-            accountService.pushMsg(cimServerResVO ,p2pRequest.getUserId(),chatVO);
+            ChatReqVO chatVO = new ChatReqVO(p2pRequest.getReceiveUserId(), p2pRequest.getMsg());
+            accountService.pushMsg(cimServerResVO, p2pRequest.getUserId(), chatVO);
 
             res.setCode(StatusEnum.SUCCESS.getCode());
             res.setMessage(StatusEnum.SUCCESS.getMessage());
 
-        }catch (CIMException e){
+        } catch (CIMException e) {
             res.setCode(e.getErrorCode());
             res.setMessage(e.getErrorMessage());
         }
@@ -124,17 +124,19 @@ public class RouteController implements RouteApi {
     }
 
 
-    @ApiOperation("客户端下线")
+    @Operation(summary = "客户端下线")
     @RequestMapping(value = "offLine", method = RequestMethod.POST)
     @ResponseBody()
     @Override
-    public BaseResponse<NULLBody> offLine(@RequestBody ChatReqVO groupReqVO) throws Exception {
+    public BaseResponse<NULLBody> offLine(@RequestBody ChatReqVO groupReqVO) {
         BaseResponse<NULLBody> res = new BaseResponse();
 
-        CIMUserInfo cimUserInfo = userInfoCacheService.loadUserInfoByUserId(groupReqVO.getUserId());
+        Optional<CIMUserInfo> cimUserInfo = userInfoCacheService.loadUserInfoByUserId(groupReqVO.getUserId());
 
-        LOGGER.info("user [{}] offline!", cimUserInfo.toString());
-        accountService.offLine(groupReqVO.getUserId());
+        cimUserInfo.ifPresent(userInfo -> {
+            log.info("user [{}] offline!", userInfo.toString());
+            accountService.offLine(groupReqVO.getUserId());
+        });
 
         res.setCode(StatusEnum.SUCCESS.getCode());
         res.setMessage(StatusEnum.SUCCESS.getMessage());
@@ -146,34 +148,36 @@ public class RouteController implements RouteApi {
      *
      * @return
      */
-    @ApiOperation("登录并获取服务器")
+    @Operation(summary = "登录并获取服务器")
     @RequestMapping(value = "login", method = RequestMethod.POST)
     @ResponseBody()
     @Override
     public BaseResponse<CIMServerResVO> login(@RequestBody LoginReqVO loginReqVO) throws Exception {
         BaseResponse<CIMServerResVO> res = new BaseResponse();
-
-        // check server available
-        String server = routeHandle.routeServer(serverCache.getServerList(),String.valueOf(loginReqVO.getUserId()));
-        LOGGER.info("userName=[{}] route server info=[{}]", loginReqVO.getUserName(), server);
-
-        RouteInfo routeInfo = RouteInfoParseUtil.parse(server);
-        commonBizService.checkServerAvailable(routeInfo);
-
         //登录校验
         StatusEnum status = accountService.login(loginReqVO);
-        if (status == StatusEnum.SUCCESS) {
-
-            //保存路由信息
-            accountService.saveRouteInfo(loginReqVO,server);
-
-            CIMServerResVO vo = new CIMServerResVO(routeInfo);
-            res.setDataBody(vo);
-
-        }
         res.setCode(status.getCode());
         res.setMessage(status.getMessage());
+        if (status != StatusEnum.SUCCESS) {
+            return res;
+        }
 
+        // check server available
+        Set<String> availableServerList = metaStore.getAvailableServerList();
+        String key = String.valueOf(loginReqVO.getUserId());
+        String server =
+                routeHandle.routeServer(List.copyOf(availableServerList), key);
+        log.info("userInfo=[{}] route server info=[{}]", loginReqVO, server);
+
+        RouteInfo routeInfo = RouteInfoParseUtil.parse(server);
+        routeInfo = commonBizService.checkServerAvailable(routeInfo, key);
+
+        //保存路由信息
+        accountService.saveRouteInfo(loginReqVO, server);
+
+        CIMServerResVO vo =
+                new CIMServerResVO(routeInfo.getIp(), routeInfo.getCimServerPort(), routeInfo.getHttpPort());
+        res.setDataBody(vo);
         return res;
     }
 
@@ -182,11 +186,12 @@ public class RouteController implements RouteApi {
      *
      * @return
      */
-    @ApiOperation("注册账号")
+    @Operation(summary = "注册账号")
     @RequestMapping(value = "registerAccount", method = RequestMethod.POST)
     @ResponseBody()
     @Override
-    public BaseResponse<RegisterInfoResVO> registerAccount(@RequestBody RegisterInfoReqVO registerInfoReqVO) throws Exception {
+    public BaseResponse<RegisterInfoResVO> registerAccount(@RequestBody RegisterInfoReqVO registerInfoReqVO)
+            throws Exception {
         BaseResponse<RegisterInfoResVO> res = new BaseResponse();
 
         long userId = System.currentTimeMillis();
@@ -204,22 +209,17 @@ public class RouteController implements RouteApi {
      *
      * @return
      */
-    @ApiOperation("获取所有在线用户")
-    @RequestMapping(value = "onlineUser", method = RequestMethod.POST)
+    @Operation(summary = "获取所有在线用户")
+    @RequestMapping(value = "onlineUser", method = RequestMethod.GET)
     @ResponseBody()
     @Override
     public BaseResponse<Set<CIMUserInfo>> onlineUser() throws Exception {
         BaseResponse<Set<CIMUserInfo>> res = new BaseResponse();
 
         Set<CIMUserInfo> cimUserInfos = userInfoCacheService.onlineUser();
-        res.setDataBody(cimUserInfos) ;
+        res.setDataBody(cimUserInfos);
         res.setCode(StatusEnum.SUCCESS.getCode());
         res.setMessage(StatusEnum.SUCCESS.getMessage());
         return res;
     }
-
-
-
-
-
 }

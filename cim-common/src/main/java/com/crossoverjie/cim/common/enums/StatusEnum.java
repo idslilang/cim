@@ -10,7 +10,7 @@ import java.util.List;
 public enum StatusEnum {
 
     /** 成功 */
-    SUCCESS("9000", "成功"),
+    SUCCESS("9000", "Success"),
     /** 成功 */
     FALLBACK("8000", "FALL_BACK"),
     /** 参数校验失败**/
@@ -25,7 +25,7 @@ public enum StatusEnum {
     REQUEST_LIMIT("6000", "请求限流"),
 
     /** 账号不在线 */
-    OFF_LINE("7000", "你选择的账号不在线，请重新选择！"),
+    OFF_LINE("7000", "You selected user is offline!, please try again later!"),
 
     SERVER_NOT_AVAILABLE("7100", "cim server is not available, please try again later!"),
 

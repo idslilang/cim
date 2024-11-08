@@ -1,14 +1,16 @@
 package com.crossoverjie.cim.server.config;
 
-import com.crossoverjie.cim.common.constant.Constants;
-import com.crossoverjie.cim.common.protocol.CIMRequestProto;
+import com.crossoverjie.cim.common.core.proxy.RpcProxyManager;
+import com.crossoverjie.cim.common.metastore.MetaStore;
+import com.crossoverjie.cim.common.metastore.ZkMetaStoreImpl;
+import com.crossoverjie.cim.common.protocol.BaseCommand;
+import com.crossoverjie.cim.common.protocol.Request;
+import com.crossoverjie.cim.route.api.RouteApi;
+import jakarta.annotation.Resource;
+import java.util.concurrent.TimeUnit;
 import okhttp3.OkHttpClient;
-import org.I0Itec.zkclient.ZkClient;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import java.util.concurrent.TimeUnit;
 
 /**
  * Function:
@@ -20,13 +22,8 @@ import java.util.concurrent.TimeUnit;
 @Configuration
 public class BeanConfig {
 
-    @Autowired
-    private AppConfiguration appConfiguration ;
-
-    @Bean
-    public ZkClient buildZKClient(){
-        return new ZkClient(appConfiguration.getZkAddr(), appConfiguration.getZkConnectTimeout());
-    }
+    @Resource
+    private AppConfiguration appConfiguration;
 
     /**
      * http client
@@ -42,18 +39,27 @@ public class BeanConfig {
         return builder.build();
     }
 
+    @Bean
+    public MetaStore metaStore() {
+        return new ZkMetaStoreImpl();
+    }
+
 
     /**
      * 创建心跳单例
      * @return
      */
     @Bean(value = "heartBeat")
-    public CIMRequestProto.CIMReqProtocol heartBeat() {
-        CIMRequestProto.CIMReqProtocol heart = CIMRequestProto.CIMReqProtocol.newBuilder()
+    public Request heartBeat() {
+        return Request.newBuilder()
                 .setRequestId(0L)
                 .setReqMsg("pong")
-                .setType(Constants.CommandType.PING)
+                .setCmd(BaseCommand.PING)
                 .build();
-        return heart;
+    }
+
+    @Bean
+    public RouteApi routeApi(OkHttpClient okHttpClient) {
+        return RpcProxyManager.create(RouteApi.class, appConfiguration.getRouteUrl(), okHttpClient);
     }
 }

@@ -1,10 +1,10 @@
 package com.crossoverjie.cim.server.handle;
 
-import com.crossoverjie.cim.common.constant.Constants;
 import com.crossoverjie.cim.common.exception.CIMException;
 import com.crossoverjie.cim.common.kit.HeartBeatHandler;
 import com.crossoverjie.cim.common.pojo.CIMUserInfo;
-import com.crossoverjie.cim.common.protocol.CIMRequestProto;
+import com.crossoverjie.cim.common.protocol.BaseCommand;
+import com.crossoverjie.cim.common.protocol.Request;
 import com.crossoverjie.cim.common.util.NettyAttrUtil;
 import com.crossoverjie.cim.server.kit.RouteHandler;
 import com.crossoverjie.cim.server.kit.ServerHeartBeatHandlerImpl;
@@ -17,8 +17,7 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Function:
@@ -28,9 +27,9 @@ import org.slf4j.LoggerFactory;
  * @since JDK 1.8
  */
 @ChannelHandler.Sharable
-public class CIMServerHandle extends SimpleChannelInboundHandler<CIMRequestProto.CIMReqProtocol> {
+@Slf4j
+public class CIMServerHandle extends SimpleChannelInboundHandler<Request> {
 
-    private final static Logger LOGGER = LoggerFactory.getLogger(CIMServerHandle.class);
 
 
     /**
@@ -44,7 +43,7 @@ public class CIMServerHandle extends SimpleChannelInboundHandler<CIMRequestProto
         //可能出现业务判断离线后再次触发 channelInactive
         CIMUserInfo userInfo = SessionSocketHolder.getUserId((NioSocketChannel) ctx.channel());
         if (userInfo != null){
-            LOGGER.warn("[{}] trigger channelInactive offline!",userInfo.getUserName());
+            log.warn("[{}] trigger channelInactive offline!",userInfo.getUserName());
 
             //Clear route info and offline.
             RouteHandler routeHandler = SpringBeanFactory.getBean(RouteHandler.class);
@@ -60,7 +59,7 @@ public class CIMServerHandle extends SimpleChannelInboundHandler<CIMRequestProto
             IdleStateEvent idleStateEvent = (IdleStateEvent) evt;
             if (idleStateEvent.state() == IdleState.READER_IDLE) {
 
-                LOGGER.info("定时检测客户端端是否存活");
+                log.info("!!READER_IDLE!!");
 
                 HeartBeatHandler heartBeatHandler = SpringBeanFactory.getBean(ServerHeartBeatHandlerImpl.class) ;
                 heartBeatHandler.process(ctx) ;
@@ -72,25 +71,24 @@ public class CIMServerHandle extends SimpleChannelInboundHandler<CIMRequestProto
 
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, CIMRequestProto.CIMReqProtocol msg) throws Exception {
-        LOGGER.info("received msg=[{}]", msg.toString());
+    protected void channelRead0(ChannelHandlerContext ctx, Request msg) throws Exception {
+        log.info("received msg=[{}]", msg.toString());
 
-        if (msg.getType() == Constants.CommandType.LOGIN) {
+        if (msg.getCmd() == BaseCommand.LOGIN_REQUEST) {
             //保存客户端与 Channel 之间的关系
             SessionSocketHolder.put(msg.getRequestId(), (NioSocketChannel) ctx.channel());
             SessionSocketHolder.saveSession(msg.getRequestId(), msg.getReqMsg());
-            LOGGER.info("client [{}] online success!!", msg.getReqMsg());
+            log.info("client [{}] online success!!", msg.getReqMsg());
         }
 
         //心跳更新时间
-        if (msg.getType() == Constants.CommandType.PING){
+        if (msg.getCmd() == BaseCommand.PING){
             NettyAttrUtil.updateReaderTime(ctx.channel(),System.currentTimeMillis());
             //向客户端响应 pong 消息
-            CIMRequestProto.CIMReqProtocol heartBeat = SpringBeanFactory.getBean("heartBeat",
-                    CIMRequestProto.CIMReqProtocol.class);
+            Request heartBeat = SpringBeanFactory.getBean("heartBeat", Request.class);
             ctx.writeAndFlush(heartBeat).addListeners((ChannelFutureListener) future -> {
                 if (!future.isSuccess()) {
-                    LOGGER.error("IO error,close Channel");
+                    log.error("IO error,close Channel");
                     future.channel().close();
                 }
             }) ;
@@ -105,7 +103,7 @@ public class CIMServerHandle extends SimpleChannelInboundHandler<CIMRequestProto
             return;
         }
 
-        LOGGER.error(cause.getMessage(), cause);
+        log.error(cause.getMessage(), cause);
 
     }
 

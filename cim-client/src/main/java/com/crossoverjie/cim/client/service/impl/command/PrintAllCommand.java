@@ -1,14 +1,11 @@
 package com.crossoverjie.cim.client.service.impl.command;
 
-import com.crossoverjie.cim.client.service.EchoService;
+import com.crossoverjie.cim.client.sdk.Event;
 import com.crossoverjie.cim.client.service.InnerCommand;
 import com.crossoverjie.cim.common.enums.SystemCommandEnum;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
+import jakarta.annotation.Resource;
 import java.util.Map;
+import org.springframework.stereotype.Service;
 
 /**
  * Function:
@@ -19,20 +16,20 @@ import java.util.Map;
  */
 @Service
 public class PrintAllCommand implements InnerCommand {
-    private final static Logger LOGGER = LoggerFactory.getLogger(PrintAllCommand.class);
 
-    @Autowired
-    private EchoService echoService ;
+
+    @Resource
+    private Event event ;
 
     @Override
     public void process(String msg) {
         Map<String, String> allStatusCode = SystemCommandEnum.getAllStatusCode();
-        echoService.echo("====================================");
+        event.info("====================================");
         for (Map.Entry<String, String> stringStringEntry : allStatusCode.entrySet()) {
             String key = stringStringEntry.getKey();
             String value = stringStringEntry.getValue();
-            echoService.echo(key + "----->" + value);
+            event.info(key + "----->" + value);
         }
-        echoService.echo("====================================");
+        event.info("====================================");
     }
 }

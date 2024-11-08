@@ -5,6 +5,7 @@
 <img src="https://i.loli.net/2020/02/21/rfOGvKlTcHCmM92.png"  /> 
 <br/>
 
+[![codecov](https://codecov.io/gh/crossoverJie/cim/graph/badge.svg?token=oW5Gd1oKmf)](https://codecov.io/gh/crossoverJie/cim)
 [![Build Status](https://img.shields.io/badge/cim-cross--im-brightgreen.svg)](https://github.com/crossoverJie/cim)
 [![](https://badge.juejin.im/entry/5c2c000e6fb9a049f5713e26/likes.svg?style=flat-square)](https://juejin.im/post/5c2bffdc51882509181395d7)
 
@@ -14,18 +15,28 @@
 </div>
 <br/>
 
+# V2.0
+- [x] Upgrade to JDK17 & springboot3.0 
+- [x] Client SDK 
+- [ ] Client use [picocli](https://picocli.info/) instead of springboot.
+- [x] Support integration testing.
+- [ ] Integrate OpenTelemetry .
+- [ ] Support single node startup(Contains no components).
+- [ ] Third-party components support replacement(Redis/Zookeeper, etc.).
+- [ ] Support web client(websocket).
+- [ ] Support docker container.
+- [ ] Support kubernetes operation.
+- [ ] Supports binary client(build with golang).
 
-## 介绍
+## Introduction
 
-`CIM(CROSS-IM)` 一款面向开发者的 `IM(即时通讯)`系统；同时提供了一些组件帮助开发者构建一款属于自己可水平扩展的 `IM` 。
+`CIM(CROSS-IM)` is an `IM (instant messaging)` system for developers; it also provides some components to help developers build their own scalable `IM`.
+Using `CIM`, you can achieve the following requirements:
+- `IM` instant messaging system.
+- Message push middleware for `APP`.
+- Message middleware for `IOT` massive connection scenarios.
 
-借助 `CIM` 你可以实现以下需求：
-
-- `IM` 即时通讯系统。
-- 适用于 `APP` 的消息推送中间件。
-- `IOT` 海量连接场景中的消息透传中间件。
-
-> 在使用或开发过程中有任何疑问都可[联系我](#联系作者)。
+> If you have any questions during use or development, you can [contact me](#联系作者).
 
 ## 视频演示
 
@@ -36,6 +47,7 @@
 | [群聊](https://youtu.be/_9a4lIkQ5_o) [私聊](https://youtu.be/kfEfQFPLBTQ) | [群聊](https://www.bilibili.com/video/av39405501) [私聊](https://www.bilibili.com/video/av39405821) | 
 | <img src="https://i.loli.net//2019//05//08//5cd1d9e788004.jpg"  height="295px" />  | <img src="https://i.loli.net//2019//05//08//5cd1da2f943c5.jpg" height="295px" />
 
+![demo.gif](pic/demo.gif)
 
 ## TODO LIST
 
@@ -49,45 +61,46 @@
 * [x] 服务端自动剔除离线客户端
 * [x] 客户端自动重连
 * [x] [延时消息](#延时消息)
+* [x] SDK 开发包
 * [ ] 分组群聊
-* [ ] SDK 开发包
 * [ ] 离线消息
-* [ ] 协议支持消息加密
+* [ ] 消息加密
 
 
 
-## 系统架构
+## Architecture
 
-![](https://i.loli.net/2019/05/08/5cd1d45a156f1.jpg)
+![](pic/architecture.png)
 
-- `CIM` 中的各个组件均采用 `SpringBoot` 构建。
--  采用 `Netty` 构建底层通信。
--  `Redis` 存放各个客户端的路由信息、账号信息、在线状态等。
--  `Zookeeper` 用于 `IM-server` 服务的注册与发现。
+- Each component in `CIM` is built using `SpringBoot`
+  - Client build with [cim-client-sdk](https://github.com/crossoverJie/cim/tree/master/cim-client-sdk)
+- Use `Netty` to build the underlying communication.
+- `MetaStore` is used for registration and discovery of `IM-server` services.
 
 
 ### cim-server
+IM server is used to receive client connections, message forwarding, message push, etc.
+Support cluster deployment.
 
-`IM` 服务端；用于接收 `client` 连接、消息透传、消息推送等功能。
+### cim-route
 
-**支持集群部署。**
-
-### cim-forward-route
-
-消息路由服务器；用于处理消息路由、消息转发、用户登录、用户下线以及一些运营工具（获取在线用户数等）。
+Route server; used to process message routing, message forwarding, user login, user offline, and some operation tools (get the number of online users, etc.).
 
 ### cim-client
+IM client terminal, a command can be started and initiated to communicate with others (group chat, private chat).
 
-`IM` 客户端；给用户使用的消息终端，一个命令即可启动并向其他人发起通讯（群聊、私聊）。
+## Flow Chart
 
-## 流程图
+![](https://s2.loli.net/2024/10/13/8teMn7BSa5VWuvi.png)
 
-![](https://i.loli.net/2019/05/08/5cd1d45b982b3.jpg)
-
-- 客户端向 `route` 发起登录。
-- 登录成功从 `Zookeeper` 中选择可用 `IM-server` 返回给客户端，并保存登录、路由信息到 `Redis`。
-- 客户端向 `IM-server` 发起长连接，成功后保持心跳。
-- 客户端下线时通过 `route` 清除状态信息。
+- Server register to `MetaStore`
+- Route subscribe `MetaStore`
+- Client login to Route
+  - Route get Server info from `MetaStore`
+- Client open connection to Server
+- Client1 send message to Route
+- Route select Server and forward message to Server
+- Server push message to Client2
 
 
 ## 快速启动
@@ -95,9 +108,16 @@
 首先需要安装 `Zookeeper、Redis` 并保证网络通畅。
 
 ```shell
+docker run --rm --name zookeeper -d -p 2181:2181 zookeeper:3.9.2
+docker run --rm --name redis -d -p 6379:6379 redis:7.4.0
+```
+
+```shell
 git clone https://github.com/crossoverJie/cim.git
 cd cim
-mvn -Dmaven.test.skip=true clean package
+mvn clean package -DskipTests=true
+cd cim-server && cim-client && cim-forward-route
+mvn clean package spring-boot:repackage -DskipTests=true
 ```
 
 ### 部署 IM-server(cim-server)
@@ -256,9 +276,19 @@ java -jar cim-client-1.0.0-SNAPSHOT.jar --server.port=8084 --cim.user.id=上方�
 :delay delayMsg 10
 ```
 
-![](https://tva1.sinaimg.cn/large/006y8mN6ly1g7brppmokqg30gn07gafj.gif)
+![](pic/delay.gif)
 
 ## 联系作者
+
+<div align="center">  
+
+<a href="https://t.zsxq.com/odQDJ" target="_blank"><img src="https://s2.loli.net/2024/05/17/zRkabDu2SKfChLX.png" alt="202405171520366.png"></a>
+</div>
+
+最近开通了知识星球，感谢大家对 CIM 的支持，为大家提供 100 份 10 元优惠券，也就是 69-10=59 元，具体福利大家可以扫码参考再决定是否加入。
+
+> PS: 后续会在星球开始 V2.0 版本的重构，感兴趣的可以加入星球当面催更（当然代码依然会开源）。
+
 - [crossoverJie@gmail.com](mailto:crossoverJie@gmail.com)
 - 微信公众号
 

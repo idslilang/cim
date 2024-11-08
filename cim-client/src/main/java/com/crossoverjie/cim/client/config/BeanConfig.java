@@ -1,115 +1,108 @@
 package com.crossoverjie.cim.client.config;
 
-import com.crossoverjie.cim.client.handle.MsgHandleCaller;
+import com.crossoverjie.cim.client.sdk.Client;
+import com.crossoverjie.cim.client.sdk.Event;
+import com.crossoverjie.cim.client.sdk.impl.ClientConfigurationData;
+import com.crossoverjie.cim.client.sdk.io.backoff.RandomBackoff;
+import com.crossoverjie.cim.client.service.MsgLogger;
+import com.crossoverjie.cim.client.service.ShutDownSign;
 import com.crossoverjie.cim.client.service.impl.MsgCallBackListener;
-import com.crossoverjie.cim.common.constant.Constants;
 import com.crossoverjie.cim.common.data.construct.RingBufferWheel;
-import com.crossoverjie.cim.common.protocol.CIMRequestProto;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import jakarta.annotation.Resource;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import okhttp3.OkHttpClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import java.util.concurrent.*;
 
 /**
  * Function:bean 配置
  *
  * @author crossoverJie
- *         Date: 24/05/2018 15:55
+ * Date: 24/05/2018 15:55
  * @since JDK 1.8
  */
 @Configuration
 public class BeanConfig {
 
-    private final static Logger LOGGER = LoggerFactory.getLogger(BeanConfig.class);
+    @Resource
+    private AppConfiguration appConfiguration;
+
+    @Resource
+    private ShutDownSign shutDownSign;
+
+    @Resource
+    private MsgLogger msgLogger;
 
 
-    @Value("${cim.user.id}")
-    private long userId;
+    @Bean
+    public Client buildClient(@Qualifier("callBackThreadPool") ThreadPoolExecutor callbackThreadPool,
+                              Event event) {
+        OkHttpClient okHttpClient = new OkHttpClient.Builder().connectTimeout(3, TimeUnit.SECONDS)
+                .readTimeout(3, TimeUnit.SECONDS)
+                .writeTimeout(3, TimeUnit.SECONDS)
+                .retryOnConnectionFailure(true).build();
 
-    @Value("${cim.callback.thread.queue.size}")
-    private int queueSize;
-
-    @Value("${cim.callback.thread.pool.size}")
-    private int poolSize;
-
-
-    /**
-     * 创建心跳单例
-     * @return
-     */
-    @Bean(value = "heartBeat")
-    public CIMRequestProto.CIMReqProtocol heartBeat() {
-        CIMRequestProto.CIMReqProtocol heart = CIMRequestProto.CIMReqProtocol.newBuilder()
-                .setRequestId(userId)
-                .setReqMsg("ping")
-                .setType(Constants.CommandType.PING)
+        return Client.builder()
+                .auth(ClientConfigurationData.Auth.builder()
+                        .userName(appConfiguration.getUserName())
+                        .userId(appConfiguration.getUserId())
+                        .build())
+                .routeUrl(appConfiguration.getRouteUrl())
+                .loginRetryCount(appConfiguration.getReconnectCount())
+                .event(event)
+                .reconnectCheck(client -> !shutDownSign.checkStatus())
+                .okHttpClient(okHttpClient)
+                .messageListener(new MsgCallBackListener(msgLogger, event))
+                .callbackThreadPool(callbackThreadPool)
+                .backoffStrategy(new RandomBackoff())
                 .build();
-        return heart;
     }
-
 
     /**
      * http client
+     *
      * @return okHttp
      */
     @Bean
     public OkHttpClient okHttpClient() {
         OkHttpClient.Builder builder = new OkHttpClient.Builder();
-        builder.connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(10, TimeUnit.SECONDS)
-                .writeTimeout(10,TimeUnit.SECONDS)
+        builder.connectTimeout(3, TimeUnit.SECONDS)
+                .readTimeout(3, TimeUnit.SECONDS)
+                .writeTimeout(3, TimeUnit.SECONDS)
                 .retryOnConnectionFailure(true);
         return builder.build();
     }
 
 
     /**
-     * 创建回调线程池
+     * Create callback thread pool
+     *
      * @return
      */
     @Bean("callBackThreadPool")
-    public ThreadPoolExecutor buildCallerThread(){
-        BlockingQueue<Runnable> queue = new LinkedBlockingQueue(queueSize);
-        ThreadFactory product = new ThreadFactoryBuilder()
+    public ThreadPoolExecutor buildCallerThread() {
+        BlockingQueue<Runnable> queue = new LinkedBlockingQueue<>(appConfiguration.getQueueSize());
+        ThreadFactory executor = new ThreadFactoryBuilder()
                 .setNameFormat("msg-callback-%d")
                 .setDaemon(true)
                 .build();
-        ThreadPoolExecutor productExecutor = new ThreadPoolExecutor(poolSize, poolSize, 1, TimeUnit.MILLISECONDS, queue,product);
-        return  productExecutor ;
-    }
-
-
-    @Bean("scheduledTask")
-    public ScheduledExecutorService buildSchedule(){
-        ThreadFactory sche = new ThreadFactoryBuilder()
-                .setNameFormat("reConnect-job-%d")
-                .setDaemon(true)
-                .build();
-        ScheduledExecutorService scheduledExecutorService = new ScheduledThreadPoolExecutor(1,sche) ;
-        return scheduledExecutorService ;
-    }
-
-    /**
-     * 回调 bean
-     * @return
-     */
-    @Bean
-    public MsgHandleCaller buildCaller(){
-        MsgHandleCaller caller = new MsgHandleCaller(new MsgCallBackListener()) ;
-
-        return caller ;
+        return new ThreadPoolExecutor(appConfiguration.getPoolSize(), appConfiguration.getPoolSize(), 1,
+                TimeUnit.MILLISECONDS, queue, executor);
     }
 
 
     @Bean
-    public RingBufferWheel bufferWheel(){
-        ExecutorService executorService = Executors.newFixedThreadPool(2) ;
-        return new RingBufferWheel(executorService) ;
+    public RingBufferWheel bufferWheel() {
+        ExecutorService executorService = Executors.newFixedThreadPool(2);
+        return new RingBufferWheel(executorService);
     }
 
 }

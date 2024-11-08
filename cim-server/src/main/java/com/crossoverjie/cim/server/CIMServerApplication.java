@@ -1,10 +1,10 @@
 package com.crossoverjie.cim.server;
 
+import com.crossoverjie.cim.common.metastore.MetaStore;
 import com.crossoverjie.cim.server.config.AppConfiguration;
-import com.crossoverjie.cim.server.kit.RegistryZK;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.crossoverjie.cim.server.kit.RegistryMetaStore;
+import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -16,26 +16,28 @@ import java.net.InetAddress;
  * @author crossoverJie
  */
 @SpringBootApplication
+@Slf4j
 public class CIMServerApplication implements CommandLineRunner{
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(CIMServerApplication.class);
 
-	@Autowired
+	@Resource
 	private AppConfiguration appConfiguration ;
+
+	@Resource
+	private MetaStore metaStore;
 
 	@Value("${server.port}")
 	private int httpPort ;
 
 	public static void main(String[] args) {
         SpringApplication.run(CIMServerApplication.class, args);
-		LOGGER.info("Start cim server success!!!");
+		log.info("Start cim server success!!!");
 	}
 
 	@Override
 	public void run(String... args) throws Exception {
-		//获得本机IP
 		String addr = InetAddress.getLocalHost().getHostAddress();
-		Thread thread = new Thread(new RegistryZK(addr, appConfiguration.getCimServerPort(),httpPort));
+		Thread thread = new Thread(new RegistryMetaStore(metaStore, addr, appConfiguration.getCimServerPort(),httpPort));
 		thread.setName("registry-zk");
 		thread.start() ;
 	}
